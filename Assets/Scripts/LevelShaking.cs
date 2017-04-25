@@ -6,7 +6,7 @@ using DG.Tweening;
 public class LevelShaking : MonoBehaviour {
     public Transform level;
 
-    private bool canShake = true;
+    private bool canShake = false;
     private float timeToShake = 10f;
     private float time = 0f;
 
@@ -48,7 +48,7 @@ public class LevelShaking : MonoBehaviour {
 
     private void OnGameStart() {
         level.DORotate(new Vector3(0f, 0f, 0f), 2f);
-        canShake = true;
+        canShake = false;
 
         Camera.main.GetComponent<CameraSmoothFollow>().target = GameObject.FindGameObjectWithTag("Player").transform;
         Camera.main.GetComponent<CameraSmoothFollow>().offset = new Vector3(5f, 5f, -5f);

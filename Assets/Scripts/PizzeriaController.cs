@@ -49,16 +49,24 @@ public class PizzeriaController : MonoBehaviour {
     }
 
     public void CallForPizza(int actualAmountOfPizza, out int amountOfPizza) {
+        int pizzas = actualAmountOfPizza;
+
         if (playerInTrigger) {
             audioSource.clip = chefClips[Random.Range(0, chefClips.Length)];
             audioSource.Play();
             ThrowPizzaToPosition(remainingPizzas);
-            amountOfPizza = remainingPizzas;
+
+            pizzas = remainingPizzas + actualAmountOfPizza;
+
+            if (pizzas > 4) {
+                pizzas = 4;
+            }
+
             remainingPizzas = 0;
             pizzeriaText.text = "0";
-        } else {
-            amountOfPizza = actualAmountOfPizza;
         }
+
+        amountOfPizza = pizzas;
     }
 
     private void ThrowPizzaToPosition(int amount) {

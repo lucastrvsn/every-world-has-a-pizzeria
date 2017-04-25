@@ -18,11 +18,16 @@ public class LevelController : MonoBehaviour {
     public GameObject[] thingsToDisable;
     public CanvasGroup gameOverOverlay;
     public Text playerPointsText;
+    public Text playerPointsTextInGame;
+    public GameObject arrow;
+    public Text timerText;
+    public Animator timerAnimator;
+    public Text deathReasonText;
 
     private List<BuildBehaviour> builds = new List<BuildBehaviour>();
     private BuildBehaviour buildActual = null;
     private int numberOfDeliveries = 0;
-    private float timeToDelivery = 20f;
+    private float timeToDelivery = 18f;
     private float time = 0f;
 
     public delegate void OnGameEnd();
@@ -34,7 +39,8 @@ public class LevelController : MonoBehaviour {
     public delegate void OnGameStartLater();
     public OnGameStartLater onGameStartLater;
 
-    private bool hasGameEnded = false;
+    public bool hasGameEnded = false;
+    public bool endOutOfTime = false;
 
     private void Awake() {
         if (instance == null) {
@@ -50,14 +56,32 @@ public class LevelController : MonoBehaviour {
             builds.Add(b.GetComponent<BuildBehaviour>());
         }
 
+        arrow = Instantiate(arrow, transform.position, Quaternion.identity);
+        arrow.transform.SetParent(GameObject.FindGameObjectWithTag("Enviroment").transform);
+        arrow.SetActive(false);
+
         RandomizePlaceToDelivery();
     }
 
     private void FixedUpdate() {
-        time += Time.deltaTime;
-        if (time >= timeToDelivery) {
-            // Game over happen!
-            Debug.LogError("GAME OVER");
+        if (!hasGameEnded) {
+            time += Time.deltaTime;
+
+            timerAnimator.SetBool("OutOfTime", (timeToDelivery - time) < 5f);
+
+            if (time >= timeToDelivery) {
+                endOutOfTime = true;
+                timerAnimator.SetBool("Ended", endOutOfTime);
+                GameOverHelper("Sorry, you ran out of time!");
+            } else {
+                timerText.text = System.Math.Floor(timeToDelivery - time).ToString();
+            }
+        }
+    }
+
+    private void Update() {
+        if (Input.GetKeyDown(KeyCode.Escape)) {
+            GameOverHelper("Don't go, try again!");
         }
     }
 
@@ -65,7 +89,9 @@ public class LevelController : MonoBehaviour {
         ToggleBuild(buildActual);
         buildActual.isTarget = false;
         RandomizePlaceToDelivery();
-        numberOfDeliveries++;
+
+        playerPointsTextInGame.text = (++numberOfDeliveries).ToString();
+
         time = 0f;
     }
 
@@ -79,24 +105,34 @@ public class LevelController : MonoBehaviour {
         buildActual = b;
         buildActual.isTarget = true;
         ToggleBuild(buildActual);
+
+        PlaceArrowOnTopOfBuilding();
+    }
+
+    private void PlaceArrowOnTopOfBuilding() {
+        arrow.SetActive(true);
+        arrow.transform.position = buildActual.arrowPosition.position;
+        Debug.Log(buildActual.arrowPosition.position);
     }
 
     private void ToggleBuild(BuildBehaviour build) {
         build.ToggleGreyscale();
     }
 
-    public void GameOverHelper() {
+    public void GameOverHelper(string deathReason) {
+        SetDeathReason(deathReason);
         StartCoroutine(GameOver());
     }
 
     private IEnumerator GameOver() {
+        hasGameEnded = true;
+
         if (onGameEndNow != null) {
             onGameEndNow();
         }
 
         yield return new WaitForSeconds(2);
 
-        hasGameEnded = true;
         if (onGameEnd != null) {
             onGameEnd();
         }
@@ -130,6 +166,17 @@ public class LevelController : MonoBehaviour {
             if (onGameStartLater != null) {
                 onGameStartLater();
             }
+
+            timerAnimator.SetBool("OutOfTime", false);
+            timerAnimator.SetBool("Ended", false);
+
+            PlaceArrowOnTopOfBuilding();
+
+            hasGameEnded = false;
+            time = 0f;
+            numberOfDeliveries = 0;
+            playerPointsTextInGame.text = numberOfDeliveries.ToString();
+            endOutOfTime = false;
         });
 
         xrayCamera.DOOrthoSize(12f, 2f);
@@ -170,5 +217,9 @@ public class LevelController : MonoBehaviour {
 
     public void BackToMenuButton() {
         SceneManager.LoadScene(0);
+    }
+
+    public void SetDeathReason(string text) {
+        deathReasonText.text = text;
     }
 }

@@ -12,6 +12,8 @@ public class BuildBehaviour : MonoBehaviour {
 
     public CanvasGroup thanksGroup;
 
+    public Transform arrowPosition;
+
     public AudioSource audioSource;
     public AudioClip[] thanksClips;
 

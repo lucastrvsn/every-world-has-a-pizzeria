@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
+using UnityEngine.UI;
 
 public class CarBehaviour : MonoBehaviour {
 
@@ -14,10 +15,19 @@ public class CarBehaviour : MonoBehaviour {
 
     public Transform spawnPosition;
 
+    [Header("SFX Configuration")]
     public AudioSource audioSource;
     public AudioSource hornSource;
     public AudioClip[] hornClips;
     public AudioClip hitClip;
+    public AudioSource getMorePizzasSource;
+    public AudioClip[] getMorePizzasClips;
+
+    [Header("UI Configuration")]
+    public Image carDamageImage;
+    public Sprite[] carDamageImages;
+    public Image amountOfPizzaImage;
+    public Sprite[] amountOfPizzaImages;
 
     [Header("Pizza Throw Configuration")]
     public GameObject pizzaPrefab;
@@ -44,7 +54,8 @@ public class CarBehaviour : MonoBehaviour {
         carSmoke.Stop();
         carSmoke.gameObject.SetActive(false);
 
-        LevelController.instance.onGameEndNow += OnGameEnd;
+        LevelController.instance.onGameEnd += OnGameEnd;
+        LevelController.instance.onGameEndNow += OnGameEndNow;
         LevelController.instance.onGameStart += OnGameStart;
         LevelController.instance.onGameStartLater += OnGameStartLater;
 
@@ -52,33 +63,64 @@ public class CarBehaviour : MonoBehaviour {
     }
 
     private void Update() {
-        if (isGrounded && Vector3.Dot(transform.up, Vector3.up) < 0f) {
-            transform.localRotation = Quaternion.identity;
-
-            if (Mathf.Abs(Vector3.Dot(transform.right, Vector3.down)) > 0.825f) {
+        if (!LevelController.instance.hasGameEnded) {
+            if (isGrounded && Vector3.Dot(transform.up, Vector3.up) < 0f) {
                 transform.localRotation = Quaternion.identity;
+
+                if (Mathf.Abs(Vector3.Dot(transform.right, Vector3.down)) > 0.825f) {
+                    transform.localRotation = Quaternion.identity;
+                }
             }
-        }
 
-        if (Input.GetKeyDown(KeyCode.Q)) {
-            ThrowPizza(throwPositionLeft.position, throwPositionLeft.forward);
-        } else if (Input.GetKeyDown(KeyCode.E)) {
-            ThrowPizza(throwPositionRight.position, throwPositionRight.forward);
-        }
+            if (Input.GetKeyDown(KeyCode.Q)) {
+                ThrowPizza(throwPositionLeft.position, throwPositionLeft.forward);
+            } else if (Input.GetKeyDown(KeyCode.E)) {
+                ThrowPizza(throwPositionRight.position, throwPositionRight.forward);
+            }
 
-        if (Input.GetKeyDown(KeyCode.F) && !hornSource.isPlaying) {
-            hornSource.clip = hornClips[Random.Range(0, hornClips.Length)];
-            hornSource.Play();
-            PizzeriaController.instance.CallForPizza(amountOfPizza, out amountOfPizza);
-        }
+            if (Input.GetKeyDown(KeyCode.F) && !hornSource.isPlaying) {
+                hornSource.clip = hornClips[Random.Range(0, hornClips.Length)];
+                hornSource.Play();
+                PizzeriaController.instance.CallForPizza(amountOfPizza, out amountOfPizza);
+                UpdatePizzasImages();
+            }
 
-#if UNITY_EDITOR
-        if (Input.GetKeyDown(KeyCode.M)) {
-            LevelController.instance.GameOverHelper();
-        }
-#endif
+    #if UNITY_EDITOR
+            if (Input.GetKeyDown(KeyCode.M)) {
+                LevelController.instance.GameOverHelper("EXPLODEEE!");
+            }
+    #endif
 
-        CheckIfGrounded();
+            CheckIfGrounded();
+        }
+    }
+
+    private void UpdatePizzasImages() {
+        if (amountOfPizza == 0) {
+            amountOfPizzaImage.sprite = amountOfPizzaImages[0];
+
+            getMorePizzasSource.clip = getMorePizzasClips[Random.Range(0, getMorePizzasClips.Length)];
+            getMorePizzasSource.Play();
+
+        } else if (amountOfPizza == 1) {
+            amountOfPizzaImage.sprite = amountOfPizzaImages[1];
+        } else if (amountOfPizza == 2) {
+            amountOfPizzaImage.sprite = amountOfPizzaImages[2];
+        } else if (amountOfPizza == 3) {
+            amountOfPizzaImage.sprite = amountOfPizzaImages[3];
+        } else if (amountOfPizza == 4) {
+            amountOfPizzaImage.sprite = amountOfPizzaImages[4];
+        }
+    }
+
+    private void UpdateCarDamangeImages() {
+        if (carLife > 2) {
+            carDamageImage.sprite = carDamageImages[2];
+        } else if (carLife > 1) {
+            carDamageImage.sprite = carDamageImages[1];
+        } else if (carLife <= 1) {
+            carDamageImage.sprite = carDamageImages[0];
+        }
     }
 
     private void ThrowPizza(Vector3 position, Vector3 forward) {
@@ -86,6 +128,7 @@ public class CarBehaviour : MonoBehaviour {
             GameObject pizza = Instantiate(pizzaPrefab, position, Quaternion.identity);
             pizza.GetComponent<Rigidbody>().AddForce(forward * throwForce, ForceMode.Impulse);
             amountOfPizza--;
+            UpdatePizzasImages();
         }
     }
 
@@ -101,7 +144,7 @@ public class CarBehaviour : MonoBehaviour {
             } else if (rigidBody.velocity.magnitude > 0.7f) {
                 CameraEffects.instance.Shake(0.2f, 0.7f, 3, 60);
             } else {
-                CameraEffects.instance.Shake(0.2f, 0.4f, 2, 50);
+                CameraEffects.instance.Shake(0.2f, 0.3f, 1, 40);
             }
 
             audioSource.clip = hitClip;
@@ -110,8 +153,10 @@ public class CarBehaviour : MonoBehaviour {
 
             Debug.Log(rigidBody.velocity.magnitude);
 
-            if (rigidBody.velocity.magnitude > 1.5f) {
+            if (rigidBody.velocity.magnitude > 0.8f) {
                 carLife--;
+
+                UpdateCarDamangeImages();
 
                 if (carLife <= 2) {
                     carSmoke.gameObject.SetActive(true);
@@ -121,29 +166,37 @@ public class CarBehaviour : MonoBehaviour {
                 }
 
                 if (carLife <= 0) {
-                    LevelController.instance.GameOverHelper();
+                    LevelController.instance.GameOverHelper("Oh no! You exploded! :(");
                 }
             }
         }
     }
 
     private void OnGameEnd() {
-        carExplosion.gameObject.SetActive(true);
-        carExplosion.transform.position = transform.position;
-        carExplosion.Play();
-
-        // Tirando o audioSource do carro para ele nao ser
-        // desativado junto com o carro.
-        audioSource.clip = explosionClip;
-        audioSource.Play();
-        audioSource.transform.SetParent(null);
-
-
         gameObject.SetActive(false);
+    }
+
+    private void OnGameEndNow() {
+        if (!LevelController.instance.endOutOfTime) {
+            carExplosion.gameObject.SetActive(true);
+            carExplosion.transform.position = transform.position;
+            carExplosion.Play();
+
+            // Tirando o audioSource do carro para ele nao ser
+            // desativado junto com o carro.
+            audioSource.clip = explosionClip;
+            audioSource.Play();
+            audioSource.transform.SetParent(null);
+
+            gameObject.SetActive(false);
+        }
     }
 
     private void OnGameStart() {
         carLife = 4;
+        amountOfPizza = 0;
+        UpdatePizzasImages();
+        UpdateCarDamangeImages();
 
         transform.position = spawnPosition.position;
         transform.SetParent(spawnPosition);
@@ -151,7 +204,6 @@ public class CarBehaviour : MonoBehaviour {
         carExplosion.gameObject.SetActive(false);
         carExplosion.transform.position = transform.position;
         carExplosion.Play();
-
 
         audioSource.transform.SetParent(transform);
 
